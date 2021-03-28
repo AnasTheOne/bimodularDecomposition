@@ -65,41 +65,33 @@ def connecetedComps(V):
                 
         comps += [comp]
     return comps
-    
+
+#à verifier: linéarité, pourquoi les flags deviennent obsolètes  
 def connecetedComps_b(V):
-    toVisit = [[],[]]
-    flagsVisited = [[0 for i in range(n[0])],[0 for i in range(n[1])]]
-    counter = [0,0]
+    nonVisited = [ {i for i in range(n[0]) if V[0][i] == 1}, {i for i in range(n[1]) if V[1][i] == 1}]
+    toVisit = [set(),set()]
     comps = []
-
-    while counter[0]+counter[1] < N:
+    while lenL(nonVisited)>0:
         c = 0
-        if counter[0] == n[0]:
+        if len(nonVisited[0]) == 0:
             c = 1
-        
-        for i in range(n[c]):
-            if flagsVisited[c][i]==0 and V[c][i]==1:
-                toVisit[c].append(i)
-                break
-
+        toVisit[c].add(nonVisited[c].pop())
         comp = set()
         while lenL(toVisit)>0:
             c = 0
             if len(toVisit[c]) == 0:
                 c=1
-            v = toVisit[c].pop(0)
-            if flagsVisited[c][v] == 0:
-                flagsVisited[c][v] = 1
-                counter[c] += 1
-                comp.add(v+n[0]*c)
-                for x in range(n[1-c]):
-                    if not x in G[c][v]:
-                        if flagsVisited[1-c][x] == 0 and V[1-c][x]==1:
-                            toVisit[1-c].append(x)
-                
+            v = toVisit[c].pop()
+            comp.add(v+n[0]*c)
+            N_v = set()
+            for x in G[c][v]:
+                if x in nonVisited[1-c]:
+                    N_v.add(x)
+                    nonVisited[1-c].remove(x)
+            toVisit[1-c].update(nonVisited[1-c])
+            nonVisited[1-c] = N_v
         comps += [comp]
     return comps
-    
 
 n = [10,10]
 N = n[0]+n[1]
@@ -132,18 +124,19 @@ for i in range(n[0]):
     for x in Gw[i]:
         G_barre.add_edge(i, f(x))
 
-colors = ['#DDDDDD' for i in range(n[0])]+['#999999' for i in range(n[1])]
-color = ['#FF0000','#FFFF00','#0000FF','#00FFFF','#FF00FF','#00FF00','#EEEEEE','#555511','#115555','#551155','#111155','#115511','#551111',]
+
+colors = ['#000000' for i in range(N)]
+color = ['#FF0000' ,'#00FF00' ,'#0000FF' ,'#00FFFF' ,'#FFFF00' ,'#FF00FF' ,'#C0C0C0','#808080','#800000','#808000','#008000','#800080','#008080','#000080','#FFA07A','#556B2F',"#20B2AA"]
 r = random.randint(0, 10)
 for i in range(len(coms)):
     for y in coms[i]:
-        colors[y] = color[(i+r)%len(color)]
+        colors[y] = color[(i*13+r)%len(color)]
 plt.figure()
 nx.draw(G, with_labels=True, font_weight='bold',node_color=colors)
 plt.figure()
 r = random.randint(0, 10)
 for i in range(len(coms_b)):
     for y in coms_b[i]:
-        colors[y] = color[(i+r)%len(color)]
+        colors[y] = color[(i*13+r)%len(color)]
 nx.draw(G_barre, with_labels=True, font_weight='bold',node_color=colors)
 plt.show()
