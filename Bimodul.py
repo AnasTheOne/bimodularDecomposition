@@ -157,8 +157,8 @@ Gw = [[0,1],[1,2],[2],[0,1,2],[0,1,2,3,4,7,8,9],[0,1,2,3,5,7,8,9],[0,1,2,3,5,6],
 #Gw = randomGen(n,0.7)
 N = n[0]+n[1]
 G=[Gw,Gb(Gw,n)] #création du graphe avec la liste d'adjacence blanche et noir
-#V = [[1 for i in range(n[0])],[1 for i in range(n[1])]]
-V = [[1,1,1,1,0,0,0,0,0,0,0],[1,1,1,1,0,0,0,0,0,0]]
+V = [[1 for i in range(n[0])],[1 for i in range(n[1])]]
+#V = [[1,1,1,1,0,0,0,0,0,0,0],[1,1,1,1,0,0,0,0,0,0]]
 print(Gw)
 coms = connectedComps(V)
 print("BFS: ", coms)
