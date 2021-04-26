@@ -3,47 +3,51 @@ import matplotlib.pyplot as plt
 import random
 from graphviz import Graph
 
+graphviz = 2
+posPlot = 0
+
 f = lambda x : chr(x+ord('a'))
 lenL = lambda L : len(L[0])+len(L[1])
 
 #Calcul d'une seconde represontation du bipari
 def Gb(Gw,n):
-    res = [[] for i in range(n[1])]
+    res = [set() for i in range(n[1])]
     for i in range(n[0]):
         for x in Gw[i]:
-            res[x].append(i)
+            res[x].add(i)
     return res
 
 #complementaire pour vérifier
 def complement(G):
-    res = [[] for i in range(n[0])]
+    res = [set() for i in range(n[0])]
     for i in range(n[0]):
         for j in range(n[1]):
             if not j in G[i]:
-                res[i].append(j)
+                res[i].add(j)
     return res
 
 #génération aléatoire
 def randomGen(n,p):
     G = []
     for i in range(n[0]):
-        L = []
+        L = set()
         for j in range(n[1]):
             if random.random() < p:
-                L.append(j)
+                L.add(j)
         G+=[L]
     return G
 
 #tri linéaire d'un tableau d'entiers
 def triDegree(d):
-    sortedD = [[[] for i in range(n[1]+1)],[[] for i in range(n[0]+1)]]
+    lenD= [len(d[0]),len(d[1])]
+    sortedD = [[[] for i in range(lenD[1]+1)],[[] for i in range(lenD[0]+1)]]
     res = [[],[]]
     for c in range(2):
-        for i in range(n[c]):
-            sortedD[c][n[1-c] - d[c][i][1]] += [d[c][i]]
+        for i in range(lenD[c]):
+            sortedD[c][lenD[1-c] - d[c][i][1]] += [d[c][i]]
     for c in range(2):
         i = 0
-        while i < n[1-c]+1:
+        while i < lenD[1-c]+1:
             if len(sortedD[c][i])>0:
                 res[c].append(sortedD[c][i].pop())
             else:
@@ -118,13 +122,15 @@ def connectedComps_b(V):
 def KpS(V):
     deg = [[],[]]#deg[0] est la liste des sommets blancs dont les élements sont des tuples (vetrex,deg(vertex))
     comp = []#liste des composantes
-
-    
     #tri à linéariser
     for c in range(2):
         for i in range(n[c]):
             if V[c][i]==1:
-                deg[c] += [(i,len(G[c][i]))]
+                s = 0
+                for x in G[c][i]:
+                    if V[1-c][x]==1:
+                        s+=1
+                deg[c] += [(i,s)]
     deg = triDegree(deg)
     n_w, n_b= len(deg[0]),len(deg[1])  
     r,s = 1,n_b 
@@ -157,16 +163,57 @@ def KpS(V):
                 r += 1
     return(comp)
 
-def sortedDegreesComp(V):
+#Decomposition K+S
+def KpS2(V):
     deg = [[],[]]#deg[0] est la liste des sommets blancs dont les élements sont des tuples (vetrex,deg(vertex))
-    
-    #tri à linéariser
+    comp = []#liste des composantes
+
     for c in range(2):
         for i in range(n[c]):
             if V[c][i]==1:
-                deg[c] += [(i,len(G[c][i]))]
+                s = 0
+                for x in G[c][i]:
+                    if V[1-c][x]==1:
+                        s+=1
+                deg[c] += [(i,s)]
     deg = triDegree(deg)
-    print(deg)
+    n_w, n_b= len(deg[0]),len(deg[1])  
+    r,s = 1,n_b 
+    S_0,S_1 = 0,0
+    old_r,old_s = 0,s
+    while r < n_w+1 or s > 0:
+        if deg[1][s-1][1] == r-1: # s isolé?
+            comp += [[set(),{f(deg[1][s-1][0])}]]
+            S_1 += deg[1][s-1][1]
+            s-=1
+            old_s = s
+        else:
+            while True:
+                S_0 += deg[0][r-1][1]
+                while s > 0 and deg[1][s-1][1]<r:
+                    S_1 += deg[1][s-1][1]
+                    s-=1
+                if S_0 == r*s + S_1:
+                    comp += [[{deg[0][i][0] for i in range(old_r,r)},{f(deg[1][i][0]) for i in range(s,old_s)}]]
+                    old_r,old_s = r,s
+                    r+=1
+                    break
+                r += 1
+    return(comp)
+
+#retourne une composante avec les sommets triés 
+def sortedDegreesComp(V):
+    deg = [[],[]]#deg[0] est la liste des sommets blancs dont les élements sont des tuples (vetrex,deg(vertex))
+    
+    for c in range(2):
+        for i in range(n[c]):
+            if V[c][i]==1:
+                s = 0
+                for x in G[c][i]:
+                    if V[1-c][x]==1:
+                        s+=1
+                deg[c] += [(i,s)]
+    deg = triDegree(deg)
     return [[[x[0] for x in deg[0]],[f(x[0]) for x in deg[1]]]]
 
 #Positions des points pour l'affichage du K+S
@@ -186,24 +233,121 @@ def positionKpsPlot(Comps):
     return pos
 
 
+#Retourne True si x distingue un sommet de M par rapport aux autres 
+def distingue(M,x,c):
+    if len(M[1-c])==0:
+        return False
+    connected = False
+    if x in G[1-c][next(iter(M[1-c]))]:
+        connected = True
+
+    for y in M[1-c]:
+        if connected != (x in G[1-c][y]):
+            return True
+    return False
+
+"""
+#Ma méthode très lente
+def distinguant(E,M):
+    isEmpty = 1
+    D = [set(),set()]
+    for c in range(2):
+        for x in E[c]:
+            if distingue(M,x,c):
+                M[c].add(x)
+                isEmpty = 0
+                D[c].add(x)
+        E[c].difference_update(D[c])
+    return isEmpty
+
+
+def PPBuv(u,v,c):
+    M = [set(),set()]
+    M[c].update({u,v})
+    D_b = [ {i for i in range(n[0])}, {i for i in range(n[1])}]
+    isEmpty = 0
+    while isEmpty==0:
+        isEmpty = distinguant(D_b,M)
+    return M
+
+"""
+#methode de la thèse
+def distinguant(E,M):
+    D = [set(),set()]
+    D_b = [set(),set()]
+    for c in range(2):
+        for x in E[c]:
+            if distingue(M,x,c):
+                D[c].add(x)
+            else:
+                D_b[c].add(x)
+    return (D,D_b)
+
+def PPBuv(x,y,col):
+    M = [set(),set()]
+    F = [[],[]]
+    
+    M[col].update({x})
+    F[col].append(y)
+    last = [-1,-1]
+    last[col]=x
+    D_b = [ {i for i in range(n[0]) if V[0][i] == 1}, {i for i in range(n[1]) if V[1][i] == 1}]
+    
+    while lenL(F) != 0:
+        c = 0
+        if len(F[c])==0:
+            c = 1
+        u = F[c].pop()
+        v = last[c]
+        if v!=-1:
+            tup = [set(),set()]
+            tup[c].update({u,v})
+            D,D_b = distinguant(D_b,tup)
+            F[0]+=list(D[0])
+            F[1]+=list(D[1])
+        M[c].add(u)
+        last[c] = u
+
+    return M 
+
+#Donne pour chaque u l'ensemble PPBu trié
+def PPB():
+    L = [{},{}]
+    for c in range(2):
+        for u in range(n[c]):
+            temp = [[] for i in range(N+1)]
+            for v in range(n[c]):
+                I = [set(),set()]
+                I[c].update({u,v})
+                M = PPBuv(u,v,c)
+                temp[lenL(M)] += [M]
+            temp2 = []
+            for l in temp:
+                for m in l:
+                    if lenL(m)!= N:
+                        temp2 += [m]
+            L[c][u] = temp2
+    return L
+
+
 n = [4,4]
-#Gw = [[0,1],[1,2],[2],[0,1,2]] # liste d'adjacence les noeuds blancs G_white
+Gw = [{0,1},{1,2},{2},{0,1,2}] # liste d'adjacence les noeuds blancs G_white
 """
 n = [11,10]
-Gw = [[0,1],[1,2],[2],[0,1,2],[0,1,2,3,4,7,8,9],[0,1,2,3,5,7,8,9],[0,1,2,3,5,6],[0,1,2,3,7,8],[0,1,2,3,8],[0,1,2,3,8,9],[0,1,2,3,9]]
+Gw = [{0,1},{1,2},{2},{0,1,2},{0,1,2,3,4,7,8,9},{0,1,2,3,5,7,8,9},{0,1,2,3,5,6},{0,1,2,3,7,8},{0,1,2,3,8},{0,1,2,3,8,9},{0,1,2,3,9}]
 """
-#Gw = [[0],[1,2,3],[1,2],[3,4],[4,5],[3,5],[6,7,8,9],[7,8],[8,9],[9,6]]
-#Gw = [[5], [0, 1, 8], [0, 8], [0, 3, 4, 8], [1, 3], [4, 7, 8, 9], [7], [7, 8, 9], [5, 6], [0, 3, 6, 8]]
-#Gw = [[0, 1, 2, 3, 4, 5, 7, 8, 9], [0, 1, 2, 3, 5, 6, 8, 9], [2, 3, 4, 5, 6, 7, 8, 9], [0, 1, 4, 5, 7, 8], [0, 2, 3, 4, 6, 7, 8, 9], [0, 1, 3, 4, 5, 7, 8, 9], [0, 1, 3, 4, 5, 6, 7, 8, 9], [0, 2, 3, 4, 6, 7, 8, 9], [1, 4, 5, 6, 7, 8, 9], [0, 1, 2, 4, 5, 6, 7, 8, 9]]
-#Gw = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [0, 1, 2, 4, 6, 8, 9], [0, 2, 3, 4, 5, 7], [1, 2, 3, 4, 5, 6, 7, 8, 9], [0, 3, 4, 6, 7, 8, 9], [0, 2, 3, 6, 7, 8, 9], [0, 4, 7, 8, 9], [0, 1, 2, 5, 6, 9], [0, 1, 3, 6, 7, 8, 9], [0, 2, 3, 4, 6, 7, 8]]
-#Gw = [[0, 1, 2, 3, 4, 5, 8], [0, 2, 3, 4, 6, 7, 8, 9], [0, 1, 2, 3, 6, 7, 8], [0, 1, 2, 3, 4, 6, 7, 9], [0, 1, 2, 3, 5, 6, 7, 8, 9], [0, 1, 2, 3, 4, 5, 6, 8, 9], [1, 2, 3, 4, 6, 7, 8, 9], [0, 1, 2, 3, 4, 6, 8, 9], [0, 1, 3, 4, 6, 7, 8, 9], [1, 2, 3, 4, 6, 7, 8, 9]]
-#Gw = [[0,1,5,6,7,8,9],[1,2,5,6,8,9],[2,3,5,6,7,8,9],[3,4,5,6,7,8,9],[4,5,6,7,8,9],[5,6],[6],[8],[8,9],[9]]
-#Gw = [[0,1,5,6,7,8,9],[1,2,5,6,7,8,9],[2,3,5,6,7,8,9],[3,4,5,6,7,8,9],[4,5,6,7,8,9],[5,6],[6,7],[7,8],[8,9],[9]]
+#Gw = [{0},{1,2,3},{1,2},{3,4},{4,5},{3,5},{6,7,8,9},{7,8},{8,9},{9,6}]
+#Gw = [{5}, {0, 1, 8}, {0, 8}, {0, 3, 4, 8}, {1, 3}, {4, 7, 8, 9}, {7}, {7, 8, 9}, {5, 6}, {0, 3, 6, 8}]
+#Gw = [{0, 1, 2, 3, 4, 5, 7, 8, 9}, {0, 1, 2, 3, 5, 6, 8, 9}, {2, 3, 4, 5, 6, 7, 8, 9}, {0, 1, 4, 5, 7, 8}, {0, 2, 3, 4, 6, 7, 8, 9}, {0, 1, 3, 4, 5, 7, 8, 9}, {0, 1, 3, 4, 5, 6, 7, 8, 9}, {0, 2, 3, 4, 6, 7, 8, 9}, {1, 4, 5, 6, 7, 8, 9}, {0, 1, 2, 4, 5, 6, 7, 8, 9}]
+#Gw = [{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, {0, 1, 2, 4, 6, 8, 9}, {0, 2, 3, 4, 5, 7}, {1, 2, 3, 4, 5, 6, 7, 8, 9}, {0, 3, 4, 6, 7, 8, 9}, {0, 2, 3, 6, 7, 8, 9}, {0, 4, 7, 8, 9}, {0, 1, 2, 5, 6, 9}, {0, 1, 3, 6, 7, 8, 9}, {0, 2, 3, 4, 6, 7, 8}]
+#Gw = [{0, 1, 2, 3, 4, 5, 8}, {0, 2, 3, 4, 6, 7, 8, 9}, {0, 1, 2, 3, 6, 7, 8}, {0, 1, 2, 3, 4, 6, 7, 9}, {0, 1, 2, 3, 5, 6, 7, 8, 9}, {0, 1, 2, 3, 4, 5, 6, 8, 9}, {1, 2, 3, 4, 6, 7, 8, 9}, {0, 1, 2, 3, 4, 6, 8, 9}, {0, 1, 3, 4, 6, 7, 8, 9}, {1, 2, 3, 4, 6, 7, 8, 9}]
+#Gw = [{0,1,5,6,7,8,9},{1,2,5,6,8,9},{2,3,5,6,7,8,9},{3,4,5,6,7,8,9},{4,5,6,7,8,9},{5,6},{6},{8},{8,9},{9}]
+#Gw = [{0,1,5,6,7,8,9},{1,2,5,6,7,8,9},{2,3,5,6,7,8,9},{3,4,5,6,7,8,9},{4,5,6,7,8,9},{5,6},{6,7},{7,8},{8,9},{9}]
 
-#Gw = [[0, 1, 2, 3], [1, 2, 3], [2, 3], [0, 1, 2, 3]]
-#Gw = [[0, 2, 3], [0, 1, 3], [0, 2, 3], [0, 3]]
+#Gw = [{0, 1, 2, 3}, {1, 2, 3}, {2, 3}, {0, 1, 2, 3}]
+#Gw = [{0, 2, 3}, {0, 1, 3}, {0, 2, 3}, {0, 3}]
 
-Gw = randomGen(n,0.7)
+#Gw = randomGen(n,0.7)
 N = n[0]+n[1]
 G=[Gw,Gb(Gw,n)] #création du graphe avec la liste d'adjacence blanche et noir
 V = [[1 for i in range(n[0])],[1 for i in range(n[1])]]
@@ -213,13 +357,19 @@ coms = connectedComps(V)
 print("BFS: ", coms)
 coms_b = connectedComps_b(V)
 print("BFS_b: ", coms_b)
-#V = [[1,1,1,1,0,0,0,0,0,0,0],[1,1,1,1,0,0,0,0,0,0]]
 kpsComp = KpS(V)
+kpsComp2 = KpS2(V)
 sortedPos = positionKpsPlot(sortedDegreesComp(V))
 #kpsComp = [{0,1,2},{0,1,2}]
-print("K+S: ",kpsComp)
+#print("K+S: ",kpsComp)
+print("K+S: ",kpsComp2)
+
+listPPB = PPB()
+for c in range(2):
+    for u in range(n[c]):
+        print(c,u,": ",[lenL(x) for x in listPPB[c][u]])
+
 #affichage
-graphviz = 1
 if graphviz == 0:
     graph = Graph()
     nodes_left = {}
@@ -261,7 +411,10 @@ elif graphviz == 1:
                 colors[y+c*n[0]] = color[(i*13+r)%len(color)]
     
     plt.figure()
-    nx.draw(G, with_labels=True, font_weight='bold',node_color=colors)
+    if posPlot == 0:
+        nx.draw(G, with_labels=True, font_weight='bold',node_color=colors)
+    else:
+        nx.draw(G, with_labels=True, font_weight='bold',node_color=colors,pos=sortedPos)
     
     #show G_barre
     plt.figure()
@@ -270,7 +423,10 @@ elif graphviz == 1:
         for c in range(2):
             for y in coms_b[i][c]:
                 colors[y+c*n[0]] = color[(i*13+r)%len(color)]
-    nx.draw(G_barre, with_labels=True, font_weight='bold',node_color=colors)
+    if posPlot == 0:
+        nx.draw(G_barre, with_labels=True, font_weight='bold',node_color=colors)
+    else:
+        nx.draw(G_barre, with_labels=True, font_weight='bold',node_color=colors,pos=sortedPos)
     
     #show K+s
     try:
@@ -280,6 +436,14 @@ elif graphviz == 1:
             l += max(len(kpsComp[i][0]),len(kpsComp[i][1]))+2
             plt.axline((l-1, 1), (l-1, 2),color="red")
         pos = positionKpsPlot(kpsComp)
+        nx.draw(G, with_labels=True, pos=pos)
+
+        plt.figure()
+        l = 0
+        for i in range(len(kpsComp2)-1):
+            l += max(len(kpsComp2[i][0]),len(kpsComp2[i][1]))+2
+            plt.axline((l-1, 1), (l-1, 2),color="red")
+        pos = positionKpsPlot(kpsComp2)
         nx.draw(G, with_labels=True, pos=pos)
     except:
         plt.figure()
