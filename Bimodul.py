@@ -56,10 +56,10 @@ def triDegree(d):
     return res
 
 #connected components
-def connectedComps(V):
+def connectedComps(M):
     toVisit = [[],[]]# élements à visiter
     flagsVisited = [[0 for i in range(n[0])],[0 for i in range(n[1])]]# flags pour marquer 
-    n_V = [sum(V[0]),sum(V[1])] #nombre d'élements dans V
+    n_V = [len(M[0]),len(M[1])] #nombre d'élements dans V
     counter = [0,0] #compteur pour compter le nombre d'élements visités
     comps = [] # liste des composantes connexes 
 
@@ -69,7 +69,7 @@ def connectedComps(V):
             c = 1
         
         for i in range(n[c]):
-            if flagsVisited[c][i]==0 and V[c][i]==1:
+            if flagsVisited[c][i]==0 and i in M[c]:
                 toVisit[c].append(i)
                 break
 
@@ -84,16 +84,18 @@ def connectedComps(V):
                 counter[c] += 1
                 comp[c].add(v)
                 for x in G[c][v]:
-                    if flagsVisited[1-c][x] == 0 and V[1-c][x]==1:
+                    if flagsVisited[1-c][x] == 0 and x in M[1-c]:
                         toVisit[1-c].append(x)
                 
         comps += [comp]
     return comps
 
 #à verifier: linéarité, pourquoi les flags deviennent obsolètes  
-def connectedComps_b(V):
+def co_connectedComps(M):
     #elements non visités
-    nonVisited = [ {i for i in range(n[0]) if V[0][i] == 1}, {i for i in range(n[1]) if V[1][i] == 1}]
+    nonVisited = [set(),set()]
+    for c in range(2):
+        nonVisited[c].update(M[c])
     toVisit = [set(),set()] # à visiter
     comps = [] #liste des composantes co-connexes
     while lenL(nonVisited)>0:
@@ -118,6 +120,7 @@ def connectedComps_b(V):
         comps += [comp]
     return comps
 
+"""
 #Version linéaire de
 def KpS(V):
     deg = [[],[]]#deg[0] est la liste des sommets blancs dont les élements sont des tuples (vetrex,deg(vertex))
@@ -162,18 +165,25 @@ def KpS(V):
                     compFound = True
                 r += 1
     return(comp)
+"""
 
 #Decomposition K+S
-def KpS2(V):
+def KpS(M):
     deg = [[],[]]#deg[0] est la liste des sommets blancs dont les élements sont des tuples (vetrex,deg(vertex))
     comp = []#liste des composantes
-
+    if lenL(M)==2:
+        if len(M[0])==1:
+            x = next(iter(M[0]))
+            y = next(iter(M[1]))
+            if y in G[0][x]:
+                return[[{x},set()],[set(),{y}]]
+        return([M])
     for c in range(2):
         for i in range(n[c]):
-            if V[c][i]==1:
+            if i in M[c]:
                 s = 0
                 for x in G[c][i]:
-                    if V[1-c][x]==1:
+                    if x in M[1-c]:
                         s+=1
                 deg[c] += [(i,s)]
     deg = triDegree(deg)
@@ -183,7 +193,7 @@ def KpS2(V):
     old_r,old_s = 0,s
     while r < n_w+1 or s > 0:
         if deg[1][s-1][1] == r-1: # s isolé?
-            comp += [[set(),{f(deg[1][s-1][0])}]]
+            comp += [[set(),{deg[1][s-1][0]}]]
             S_1 += deg[1][s-1][1]
             s-=1
             old_s = s
@@ -194,7 +204,7 @@ def KpS2(V):
                     S_1 += deg[1][s-1][1]
                     s-=1
                 if S_0 == r*s + S_1:
-                    comp += [[{deg[0][i][0] for i in range(old_r,r)},{f(deg[1][i][0]) for i in range(s,old_s)}]]
+                    comp += [[{deg[0][i][0] for i in range(old_r,r)},{deg[1][i][0] for i in range(s,old_s)}]]
                     old_r,old_s = r,s
                     r+=1
                     break
@@ -202,15 +212,15 @@ def KpS2(V):
     return(comp)
 
 #retourne une composante avec les sommets triés 
-def sortedDegreesComp(V):
+def sortedDegreesComp(M):
     deg = [[],[]]#deg[0] est la liste des sommets blancs dont les élements sont des tuples (vetrex,deg(vertex))
     
     for c in range(2):
         for i in range(n[c]):
-            if V[c][i]==1:
+            if i in M[c]:
                 s = 0
                 for x in G[c][i]:
-                    if V[1-c][x]==1:
+                    if x in M[1-c]:
                         s+=1
                 deg[c] += [(i,s)]
     deg = triDegree(deg)
@@ -232,7 +242,6 @@ def positionKpsPlot(Comps):
         l = m
     return pos
 
-
 #Retourne True si x distingue un sommet de M par rapport aux autres 
 def distingue(M,x,c):
     if len(M[1-c])==0:
@@ -246,8 +255,9 @@ def distingue(M,x,c):
             return True
     return False
 
-"""
+
 #Ma méthode très lente
+"""
 def distinguant(E,M):
     isEmpty = 1
     D = [set(),set()]
@@ -259,8 +269,6 @@ def distinguant(E,M):
                 D[c].add(x)
         E[c].difference_update(D[c])
     return isEmpty
-
-
 def PPBuv(u,v,c):
     M = [set(),set()]
     M[c].update({u,v})
@@ -269,8 +277,8 @@ def PPBuv(u,v,c):
     while isEmpty==0:
         isEmpty = distinguant(D_b,M)
     return M
-
 """
+
 #methode de la thèse
 def distinguant(E,M):
     D = [set(),set()]
@@ -291,7 +299,7 @@ def PPBuv(x,y,col):
     F[col].append(y)
     last = [-1,-1]
     last[col]=x
-    D_b = [ {i for i in range(n[0]) if V[0][i] == 1}, {i for i in range(n[1]) if V[1][i] == 1}]
+    D_b = [ {i for i in range(n[0])}, {i for i in range(n[1])}]#if V[0][i]==1
     
     while lenL(F) != 0:
         c = 0
@@ -329,13 +337,50 @@ def PPB():
             L[c][u] = temp2
     return L
 
+def recursivePart(M):
+    if lenL(M)==1:
+        return(("leaf",M))
 
+    comps = KpS(M)
+    if len(comps)>1:
+        return([("K+S",M)]+[recursivePart(comp) for comp in comps])
+    else:
+        comps = co_connectedComps(M)
+        if len(comps)>1:
+            return([("serie",M)]+[recursivePart(comp) for comp in comps])
+        else:
+            comps = connectedComps(M)
+            if len(comps)>1:
+                return([("parallele",M)]+[recursivePart(comp) for comp in comps])        
+            else:
+                return([("c-indecomposable",M)])
+    
+def displayTree(T,t):
+    if t == 0:
+        print("Decomposition:")
+    if T[0]=="leaf" or T[0]=="c-indecomposable":
+        for i in range(t):
+            print("--",end="")
+        print(T)
+    else:
+        for i in range(t):
+            print("--",end="")
+        print(T[0])
+        for i in range(1,len(T)):
+            displayTree(T[i],4+t)
+
+def decompositionTree():
+    M = [{i for i in range(n[0])},{i for i in range(n[1])}]
+    tree = recursivePart(M)
+    displayTree(tree,0)
+    return True
+"""
 n = [4,4]
 Gw = [{0,1},{1,2},{2},{0,1,2}] # liste d'adjacence les noeuds blancs G_white
 """
 n = [11,10]
 Gw = [{0,1},{1,2},{2},{0,1,2},{0,1,2,3,4,7,8,9},{0,1,2,3,5,7,8,9},{0,1,2,3,5,6},{0,1,2,3,7,8},{0,1,2,3,8},{0,1,2,3,8,9},{0,1,2,3,9}]
-"""
+
 #Gw = [{0},{1,2,3},{1,2},{3,4},{4,5},{3,5},{6,7,8,9},{7,8},{8,9},{9,6}]
 #Gw = [{5}, {0, 1, 8}, {0, 8}, {0, 3, 4, 8}, {1, 3}, {4, 7, 8, 9}, {7}, {7, 8, 9}, {5, 6}, {0, 3, 6, 8}]
 #Gw = [{0, 1, 2, 3, 4, 5, 7, 8, 9}, {0, 1, 2, 3, 5, 6, 8, 9}, {2, 3, 4, 5, 6, 7, 8, 9}, {0, 1, 4, 5, 7, 8}, {0, 2, 3, 4, 6, 7, 8, 9}, {0, 1, 3, 4, 5, 7, 8, 9}, {0, 1, 3, 4, 5, 6, 7, 8, 9}, {0, 2, 3, 4, 6, 7, 8, 9}, {1, 4, 5, 6, 7, 8, 9}, {0, 1, 2, 4, 5, 6, 7, 8, 9}]
@@ -350,24 +395,27 @@ Gw = [{0,1},{1,2},{2},{0,1,2},{0,1,2,3,4,7,8,9},{0,1,2,3,5,7,8,9},{0,1,2,3,5,6},
 #Gw = randomGen(n,0.7)
 N = n[0]+n[1]
 G=[Gw,Gb(Gw,n)] #création du graphe avec la liste d'adjacence blanche et noir
-V = [[1 for i in range(n[0])],[1 for i in range(n[1])]]
+#V = [[1 for i in range(n[0])],[1 for i in range(n[1])]]
+M = [{i for i in range(n[0])},{i for i in range(n[1])}]
 #V = [[1,1,1,1,0,0,0,0,0,0,0],[1,1,1,1,0,0,0,0,0,0]]
 print(Gw)
-coms = connectedComps(V)
+coms = connectedComps(M)
 print("BFS: ", coms)
-coms_b = connectedComps_b(V)
+coms_b = co_connectedComps(M)
 print("BFS_b: ", coms_b)
-kpsComp = KpS(V)
-kpsComp2 = KpS2(V)
-sortedPos = positionKpsPlot(sortedDegreesComp(V))
+kpsComp = KpS(M)
+sortedPos = positionKpsPlot(sortedDegreesComp(M))
 #kpsComp = [{0,1,2},{0,1,2}]
 #print("K+S: ",kpsComp)
-print("K+S: ",kpsComp2)
+print("K+S: ",kpsComp)
 
 listPPB = PPB()
+
 for c in range(2):
     for u in range(n[c]):
         print(c,u,": ",[lenL(x) for x in listPPB[c][u]])
+
+decompositionTree()
 
 #affichage
 if graphviz == 0:
@@ -438,13 +486,6 @@ elif graphviz == 1:
         pos = positionKpsPlot(kpsComp)
         nx.draw(G, with_labels=True, pos=pos)
 
-        plt.figure()
-        l = 0
-        for i in range(len(kpsComp2)-1):
-            l += max(len(kpsComp2[i][0]),len(kpsComp2[i][1]))+2
-            plt.axline((l-1, 1), (l-1, 2),color="red")
-        pos = positionKpsPlot(kpsComp2)
-        nx.draw(G, with_labels=True, pos=pos)
     except:
         plt.figure()
         print("problem with K+S")
