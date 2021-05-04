@@ -120,53 +120,6 @@ def co_connectedComps(M):
         comps += [comp]
     return comps
 
-"""
-#Version linéaire de
-def KpS(V):
-    deg = [[],[]]#deg[0] est la liste des sommets blancs dont les élements sont des tuples (vetrex,deg(vertex))
-    comp = []#liste des composantes
-    #tri à linéariser
-    for c in range(2):
-        for i in range(n[c]):
-            if V[c][i]==1:
-                s = 0
-                for x in G[c][i]:
-                    if V[1-c][x]==1:
-                        s+=1
-                deg[c] += [(i,s)]
-    deg = triDegree(deg)
-    n_w, n_b= len(deg[0]),len(deg[1])  
-    r,s = 1,n_b 
-    S_0,S_1 = 0,0
-    old_r,old_s = 0,s
-    deg[0]+=[(-1,-1)]
-    while r < n_w+1 or s > 0:
-        if deg[0][r-1][1] == s or deg[1][s-1][1] == old_r:
-            if deg[0][r-1][1] == s:
-                comp += [[{deg[0][r-1][0]},set()]]
-                old_r += 1
-                S_0 += deg[0][r-1][1]
-                r+=1
-            elif deg[1][s-1][1] == old_r:
-                comp += [[set(),{f(deg[1][s-1][0])}]]
-                old_s -= 1
-                S_1 += deg[1][s-1][1]
-                s-=1
-        else:
-            compFound = False
-            while not compFound:
-                S_0 += deg[0][r-1][1]
-                while s > 0 and deg[1][s-1][1]<r:
-                    S_1 += deg[1][s-1][1]
-                    s-=1
-                if S_0 == r*s + S_1:
-                    comp += [[{deg[0][i][0] for i in range(old_r,r)},{f(deg[1][i][0]) for i in range(s,old_s)}]]
-                    old_r,old_s = r,s
-                    compFound = True
-                r += 1
-    return(comp)
-"""
-
 #Decomposition K+S
 def KpS(M):
     deg = [[],[]]#deg[0] est la liste des sommets blancs dont les élements sont des tuples (vetrex,deg(vertex))
@@ -192,7 +145,7 @@ def KpS(M):
     S_0,S_1 = 0,0
     old_r,old_s = 0,s
     while r < n_w+1 or s > 0:
-        if deg[1][s-1][1] == r-1: # s isolé?
+        if deg[1][s-1][1] == r-1 and s>0: # s isolé?
             comp += [[set(),{deg[1][s-1][0]}]]
             S_1 += deg[1][s-1][1]
             s-=1
@@ -242,54 +195,42 @@ def positionKpsPlot(Comps):
         l = m
     return pos
 
-#Retourne True si x distingue un sommet de M par rapport aux autres 
-def distingue(M,x,c):
-    if len(M[1-c])==0:
-        return False
-    connected = False
-    if x in G[1-c][next(iter(M[1-c]))]:
-        connected = True
-
-    for y in M[1-c]:
-        if connected != (x in G[1-c][y]):
-            return True
-    return False
-
-
-#Ma méthode très lente
-"""
-def distinguant(E,M):
-    isEmpty = 1
-    D = [set(),set()]
-    for c in range(2):
-        for x in E[c]:
-            if distingue(M,x,c):
-                M[c].add(x)
-                isEmpty = 0
-                D[c].add(x)
-        E[c].difference_update(D[c])
-    return isEmpty
-def PPBuv(u,v,c):
-    M = [set(),set()]
-    M[c].update({u,v})
-    D_b = [ {i for i in range(n[0])}, {i for i in range(n[1])}]
-    isEmpty = 0
-    while isEmpty==0:
-        isEmpty = distinguant(D_b,M)
-    return M
-"""
-
 #methode de la thèse
-def distinguant(E,M):
-    D = [set(),set()]
-    D_b = [set(),set()]
-    for c in range(2):
-        for x in E[c]:
-            if distingue(M,x,c):
-                D[c].add(x)
+def separators(x,y,col):
+    neighborhood = [list(G[col][x]),list(G[col][y])]
+    sortedGamma = [[-1 for i in range(n[1-col])],[-1 for i in range(n[1-col])]]
+
+    for r in range(2):
+        for x in neighborhood[r]:
+            sortedGamma[r][x]=x
+        i = 0
+        while i < len(sortedGamma[r]):
+            if sortedGamma[r][i]==-1:
+                sortedGamma[r].pop(i)
             else:
-                D_b[c].add(x)
-    return (D,D_b)
+                i+=1
+    res = []
+    i = 0
+    j = 0
+    while i < len(sortedGamma[0]) and j < len(sortedGamma[1]):
+        if sortedGamma[0][i]==sortedGamma[1][j]:                
+            i+=1
+            j+=1
+        elif sortedGamma[0][i]>sortedGamma[1][j]:
+            res += [sortedGamma[1][j]]
+            j+=1
+        else:
+            res += [sortedGamma[0][i]]
+            i+=1
+    
+    while i < len(sortedGamma[0]):
+        res += [sortedGamma[0][i]]
+        i+=1
+    while j < len(sortedGamma[1]):
+        res += [sortedGamma[1][j]]
+        j+=1
+
+    return res
 
 def PPBuv(x,y,col):
     M = [set(),set()]
@@ -299,8 +240,6 @@ def PPBuv(x,y,col):
     F[col].append(y)
     last = [-1,-1]
     last[col]=x
-    D_b = [ {i for i in range(n[0])}, {i for i in range(n[1])}]#if V[0][i]==1
-    
     while lenL(F) != 0:
         c = 0
         if len(F[c])==0:
@@ -308,11 +247,8 @@ def PPBuv(x,y,col):
         u = F[c].pop()
         v = last[c]
         if v!=-1:
-            tup = [set(),set()]
-            tup[c].update({u,v})
-            D,D_b = distinguant(D_b,tup)
-            F[0]+=list(D[0])
-            F[1]+=list(D[1])
+            S = separators(u,v,c)
+            F[1-c]+=[x for x in S if not x in M[1-c]]#à revoiiiiiiiiiiiiir
         M[c].add(u)
         last[c] = u
 
@@ -337,23 +273,86 @@ def PPB():
             L[c][u] = temp2
     return L
 
-def recursivePart(M):
+def unionIsBimodule(A,B):
+
+    if (len(A[0])==0 and len(B[1])==0) or (len(A[1])==0 and len(B[0])==0):
+        return True
+    isBim = True
+    for c in range(2):
+        if len(A[c])>0 and len(B[c])>0:
+            a = next(iter(A[c]))
+            b = next(iter(B[c]))
+            sep = set(separators(a,b,c))
+            isBim &= sep.issubset(A[1-c].union(B[1-c]))
+    return isBim
+    
+def isBimodule(M):
+    res = True
+    for c in range(2):
+        for i in range(n[c]):
+            if not i in M[c]:
+                isTrue = True
+                isFalse = True
+                for x in M[1-c]:
+                    isFalse &= not x in G[c][i]
+                    isTrue &= x in G[c][i]
+                res &= isTrue or isFalse
+    return res
+    
+def decompose(M,listPPB):
     if lenL(M)==1:
         return(("leaf",M))
 
     comps = KpS(M)
     if len(comps)>1:
-        return([("K+S",M)]+[recursivePart(comp) for comp in comps])
+        return([("K+S",M)]+[decompose(comp,listPPB) for comp in comps])
     else:
         comps = co_connectedComps(M)
         if len(comps)>1:
-            return([("serie",M)]+[recursivePart(comp) for comp in comps])
+            return([("serie",M)]+[decompose(comp,listPPB) for comp in comps])
         else:
             comps = connectedComps(M)
             if len(comps)>1:
-                return([("parallele",M)]+[recursivePart(comp) for comp in comps])        
+                return([("parallele",M)]+[decompose(comp,listPPB) for comp in comps])
             else:
-                return([("c-indecomposable",M)])
+                F = []
+                for c in range(2):
+                    for x in M[c]:
+                        i = len(listPPB[c][x])-1
+                        while i>0:
+                            if i<lenL(M):
+                                if listPPB[c][x][i][0]<M[0] and listPPB[c][x][i][1]<M[1]:
+                                    break
+                            i-=1
+                        F+= [listPPB[c][x][i]]
+                comps = [F.pop()]
+                for m in F:
+                    isAlreadyComponent = False
+                    for i in range(len(comps)):
+                        union = [m[0].union(comps[i][0]),m[1].union(comps[i][1])]
+                        if len(union[0])!=1 or len(union[1])!=1:#à verifier 04/05
+                            isBim = unionIsBimodule(m,comps[i])
+                            #isBim = isBimodule(union)
+                            if isBim:
+                                isAlreadyComponent = True
+                                comps[i] = union
+                    if not isAlreadyComponent:
+                        comps += [m]
+
+                finalComps = []
+                for i in range(len(comps)):
+                    for j in range(i+1,len(comps)):
+                        inter = [comps[i][c].intersection(comps[j][c]) for c in range(2)]
+                        if lenL(inter)!=0:
+                            if len(inter[0])!=0:
+                                finalComps+=[[inter[0],set()]]
+                            if len(inter[1])!=0:
+                                finalComps+=[[set(),inter[1]]]
+                            comps[i]=[comps[i][0]-inter[0],comps[i][1]-inter[1]]
+                            comps[j]=[comps[j][0]-inter[0],comps[j][1]-inter[1]]
+                    finalComps += [comps[i]]
+                
+                return([("premier",M)]+[decompose(comp,listPPB) for comp in finalComps])
     
 def displayTree(T,t):
     if t == 0:
@@ -371,33 +370,23 @@ def displayTree(T,t):
 
 def decompositionTree():
     M = [{i for i in range(n[0])},{i for i in range(n[1])}]
-    tree = recursivePart(M)
+    listPPB = PPB()
+    tree = decompose(M,listPPB)
     displayTree(tree,0)
     return True
+
 """
 n = [4,4]
 Gw = [{0,1},{1,2},{2},{0,1,2}] # liste d'adjacence les noeuds blancs G_white
 """
 n = [11,10]
-Gw = [{0,1},{1,2},{2},{0,1,2},{0,1,2,3,4,7,8,9},{0,1,2,3,5,7,8,9},{0,1,2,3,5,6},{0,1,2,3,7,8},{0,1,2,3,8},{0,1,2,3,8,9},{0,1,2,3,9}]
-
-#Gw = [{0},{1,2,3},{1,2},{3,4},{4,5},{3,5},{6,7,8,9},{7,8},{8,9},{9,6}]
-#Gw = [{5}, {0, 1, 8}, {0, 8}, {0, 3, 4, 8}, {1, 3}, {4, 7, 8, 9}, {7}, {7, 8, 9}, {5, 6}, {0, 3, 6, 8}]
-#Gw = [{0, 1, 2, 3, 4, 5, 7, 8, 9}, {0, 1, 2, 3, 5, 6, 8, 9}, {2, 3, 4, 5, 6, 7, 8, 9}, {0, 1, 4, 5, 7, 8}, {0, 2, 3, 4, 6, 7, 8, 9}, {0, 1, 3, 4, 5, 7, 8, 9}, {0, 1, 3, 4, 5, 6, 7, 8, 9}, {0, 2, 3, 4, 6, 7, 8, 9}, {1, 4, 5, 6, 7, 8, 9}, {0, 1, 2, 4, 5, 6, 7, 8, 9}]
-#Gw = [{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, {0, 1, 2, 4, 6, 8, 9}, {0, 2, 3, 4, 5, 7}, {1, 2, 3, 4, 5, 6, 7, 8, 9}, {0, 3, 4, 6, 7, 8, 9}, {0, 2, 3, 6, 7, 8, 9}, {0, 4, 7, 8, 9}, {0, 1, 2, 5, 6, 9}, {0, 1, 3, 6, 7, 8, 9}, {0, 2, 3, 4, 6, 7, 8}]
-#Gw = [{0, 1, 2, 3, 4, 5, 8}, {0, 2, 3, 4, 6, 7, 8, 9}, {0, 1, 2, 3, 6, 7, 8}, {0, 1, 2, 3, 4, 6, 7, 9}, {0, 1, 2, 3, 5, 6, 7, 8, 9}, {0, 1, 2, 3, 4, 5, 6, 8, 9}, {1, 2, 3, 4, 6, 7, 8, 9}, {0, 1, 2, 3, 4, 6, 8, 9}, {0, 1, 3, 4, 6, 7, 8, 9}, {1, 2, 3, 4, 6, 7, 8, 9}]
-#Gw = [{0,1,5,6,7,8,9},{1,2,5,6,8,9},{2,3,5,6,7,8,9},{3,4,5,6,7,8,9},{4,5,6,7,8,9},{5,6},{6},{8},{8,9},{9}]
-#Gw = [{0,1,5,6,7,8,9},{1,2,5,6,7,8,9},{2,3,5,6,7,8,9},{3,4,5,6,7,8,9},{4,5,6,7,8,9},{5,6},{6,7},{7,8},{8,9},{9}]
-
-#Gw = [{0, 1, 2, 3}, {1, 2, 3}, {2, 3}, {0, 1, 2, 3}]
-#Gw = [{0, 2, 3}, {0, 1, 3}, {0, 2, 3}, {0, 3}]
+Gw = [{0,1},{1,2},{2},{0,1,2},{0,3,1,2,4,7,8,9},{0,1,2,3,5,7,8,9},{0,1,2,3,5,6},{0,1,2,3,7,8},{0,1,2,3,8},{0,1,2,3,8,9},{0,1,2,3,9}]
 
 #Gw = randomGen(n,0.7)
 N = n[0]+n[1]
 G=[Gw,Gb(Gw,n)] #création du graphe avec la liste d'adjacence blanche et noir
-#V = [[1 for i in range(n[0])],[1 for i in range(n[1])]]
+
 M = [{i for i in range(n[0])},{i for i in range(n[1])}]
-#V = [[1,1,1,1,0,0,0,0,0,0,0],[1,1,1,1,0,0,0,0,0,0]]
 print(Gw)
 coms = connectedComps(M)
 print("BFS: ", coms)
@@ -405,15 +394,7 @@ coms_b = co_connectedComps(M)
 print("BFS_b: ", coms_b)
 kpsComp = KpS(M)
 sortedPos = positionKpsPlot(sortedDegreesComp(M))
-#kpsComp = [{0,1,2},{0,1,2}]
-#print("K+S: ",kpsComp)
 print("K+S: ",kpsComp)
-
-listPPB = PPB()
-
-for c in range(2):
-    for u in range(n[c]):
-        print(c,u,": ",[lenL(x) for x in listPPB[c][u]])
 
 decompositionTree()
 
@@ -480,10 +461,11 @@ elif graphviz == 1:
     try:
         plt.figure()
         l = 0
+        plotReadyKPSComp = [[comp[0],{f(x) for x in comp[1]}]for comp in kpsComp]
         for i in range(len(kpsComp)-1):
             l += max(len(kpsComp[i][0]),len(kpsComp[i][1]))+2
             plt.axline((l-1, 1), (l-1, 2),color="red")
-        pos = positionKpsPlot(kpsComp)
+        pos = positionKpsPlot(plotReadyKPSComp)
         nx.draw(G, with_labels=True, pos=pos)
 
     except:
