@@ -37,6 +37,20 @@ def randomGen(n,p):
         G+=[L]
     return G
 
+#retourne True si M est un bimodule
+def isBimodule(M):
+    res = True
+    for c in range(2):
+        for i in range(n[c]):
+            if not i in M[c]:
+                isTrue = True
+                isFalse = True
+                for x in M[1-c]:
+                    isFalse &= not x in G[c][i]
+                    isTrue &= x in G[c][i]
+                res &= isTrue or isFalse
+    return res
+  
 #tri linéaire d'un tableau d'entiers
 def triDegree(d):
     lenD= [len(d[0]),len(d[1])]
@@ -195,7 +209,7 @@ def positionKpsPlot(Comps):
         l = m
     return pos
 
-#methode de la thèse
+#separateurs contenant x,y de couleur col
 def separators(x,y,col):
     neighborhood = [list(G[col][x]),list(G[col][y])]
     sortedGamma = [[-1 for i in range(n[1-col])],[-1 for i in range(n[1-col])]]
@@ -232,6 +246,7 @@ def separators(x,y,col):
 
     return res
 
+#Plus petit bimodule contenant x,y de couleur col
 def PPBuv(x,y,col):
     M = [set(),set()]
     F = [[],[]]
@@ -248,7 +263,7 @@ def PPBuv(x,y,col):
         v = last[c]
         if v!=-1:
             S = separators(u,v,c)
-            F[1-c]+=[x for x in S if not x in M[1-c]]#à revoiiiiiiiiiiiiir
+            F[1-c]+=[x for x in S if not x in M[1-c]]#à vérifier 04/05 (éviter les boucles infinies)
         M[c].add(u)
         last[c] = u
 
@@ -259,23 +274,23 @@ def PPB():
     L = [{},{}]
     for c in range(2):
         for u in range(n[c]):
-            temp = [[] for i in range(N+1)]
+            listePPBTriee = [[] for i in range(N+1)]
             for v in range(n[c]):
                 I = [set(),set()]
                 I[c].update({u,v})
                 M = PPBuv(u,v,c)
-                temp[lenL(M)] += [M]
-            temp2 = []
-            for l in temp:
+                listePPBTriee[lenL(M)] += [M]
+            finalPPBList = []
+            for l in listePPBTriee:
                 for m in l:
                     if lenL(m)!= N:
-                        temp2 += [m]
-            L[c][u] = temp2
+                        finalPPBList += [m]
+            L[c][u] = finalPPBList
     return L
 
+#L'union de A et B est un bimodule
 def unionIsBimodule(A,B):
-
-    if (len(A[0])==0 and len(B[1])==0) or (len(A[1])==0 and len(B[0])==0):
+    if (len(A[0])==0 and len(B[1])==0) or (len(A[1])==0 and len(B[0])==0):#à verifier 04/05
         return True
     isBim = True
     for c in range(2):
@@ -285,75 +300,8 @@ def unionIsBimodule(A,B):
             sep = set(separators(a,b,c))
             isBim &= sep.issubset(A[1-c].union(B[1-c]))
     return isBim
-    
-def isBimodule(M):
-    res = True
-    for c in range(2):
-        for i in range(n[c]):
-            if not i in M[c]:
-                isTrue = True
-                isFalse = True
-                for x in M[1-c]:
-                    isFalse &= not x in G[c][i]
-                    isTrue &= x in G[c][i]
-                res &= isTrue or isFalse
-    return res
-    
-def decompose(M,listPPB):
-    if lenL(M)==1:
-        return(("leaf",M))
 
-    comps = KpS(M)
-    if len(comps)>1:
-        return([("K+S",M)]+[decompose(comp,listPPB) for comp in comps])
-    else:
-        comps = co_connectedComps(M)
-        if len(comps)>1:
-            return([("serie",M)]+[decompose(comp,listPPB) for comp in comps])
-        else:
-            comps = connectedComps(M)
-            if len(comps)>1:
-                return([("parallele",M)]+[decompose(comp,listPPB) for comp in comps])
-            else:
-                F = []
-                for c in range(2):
-                    for x in M[c]:
-                        i = len(listPPB[c][x])-1
-                        while i>0:
-                            if i<lenL(M):
-                                if listPPB[c][x][i][0]<M[0] and listPPB[c][x][i][1]<M[1]:
-                                    break
-                            i-=1
-                        F+= [listPPB[c][x][i]]
-                comps = [F.pop()]
-                for m in F:
-                    isAlreadyComponent = False
-                    for i in range(len(comps)):
-                        union = [m[0].union(comps[i][0]),m[1].union(comps[i][1])]
-                        if len(union[0])!=1 or len(union[1])!=1:#à verifier 04/05
-                            isBim = unionIsBimodule(m,comps[i])
-                            #isBim = isBimodule(union)
-                            if isBim:
-                                isAlreadyComponent = True
-                                comps[i] = union
-                    if not isAlreadyComponent:
-                        comps += [m]
-
-                finalComps = []
-                for i in range(len(comps)):
-                    for j in range(i+1,len(comps)):
-                        inter = [comps[i][c].intersection(comps[j][c]) for c in range(2)]
-                        if lenL(inter)!=0:
-                            if len(inter[0])!=0:
-                                finalComps+=[[inter[0],set()]]
-                            if len(inter[1])!=0:
-                                finalComps+=[[set(),inter[1]]]
-                            comps[i]=[comps[i][0]-inter[0],comps[i][1]-inter[1]]
-                            comps[j]=[comps[j][0]-inter[0],comps[j][1]-inter[1]]
-                    finalComps += [comps[i]]
-                
-                return([("premier",M)]+[decompose(comp,listPPB) for comp in finalComps])
-    
+#Afficher la décomposition
 def displayTree(T,t):
     if t == 0:
         print("Decomposition:")
@@ -367,11 +315,71 @@ def displayTree(T,t):
         print(T[0])
         for i in range(1,len(T)):
             displayTree(T[i],4+t)
+ 
+#décomposition récursive de M
+def recursiveDecompose(M,listPPB):
+    if lenL(M)==1:
+        return(("leaf",M))#M est un sommet
 
+    comps = KpS(M)
+    if len(comps)>1:#M est un K+S
+        return([("K+S",M)]+[recursiveDecompose(comp,listPPB) for comp in comps])
+    else:
+        comps = co_connectedComps(M)
+        if len(comps)>1:#M est un série
+            return([("serie",M)]+[recursiveDecompose(comp,listPPB) for comp in comps])
+        else:
+            comps = connectedComps(M)
+            if len(comps)>1:#M est parallele
+                return([("parallele",M)]+[recursiveDecompose(comp,listPPB) for comp in comps])
+            else:#M est premier
+                F = []
+                for c in range(2):
+                    for x in M[c]:
+                        #pour chaque x,c on cherche i tq listPPB[c][x][i] est de taille inférieur à M
+                        i = len(listPPB[c][x])-1
+                        while i>0:
+                            if i<lenL(M):
+                                if listPPB[c][x][i][0]<M[0] and listPPB[c][x][i][1]<M[1]:
+                                    break
+                            i-=1
+                        F+= [listPPB[c][x][i]]
+                
+                #calcul des classes d'équivalences pour la relation R(M,N) si M union N est un bimodule
+                comps = [F.pop()]
+                for m in F:
+                    isAlreadyComponent = False
+                    for i in range(len(comps)):
+                        union = [m[0].union(comps[i][0]),m[1].union(comps[i][1])]
+                        if len(union[0])!=1 or len(union[1])!=1:#à verifier 04/05
+                            isBim = unionIsBimodule(m,comps[i])
+                            if isBim:
+                                isAlreadyComponent = True
+                                comps[i] = union
+                    if not isAlreadyComponent:
+                        comps += [m]
+                
+                #séparation des sommets conflictuel
+                finalComps = []
+                for i in range(len(comps)):
+                    for j in range(i+1,len(comps)):
+                        inter = [comps[i][c].intersection(comps[j][c]) for c in range(2)]
+                        if lenL(inter)!=0:
+                            if len(inter[0])!=0:
+                                finalComps+=[[inter[0],set()]]
+                            if len(inter[1])!=0:
+                                finalComps+=[[set(),inter[1]]]
+                            comps[i]=[comps[i][0]-inter[0],comps[i][1]-inter[1]]
+                            comps[j]=[comps[j][0]-inter[0],comps[j][1]-inter[1]]
+                    finalComps += [comps[i]]
+                
+                return([("premier",M)]+[recursiveDecompose(comp,listPPB) for comp in finalComps])
+
+#décomposition bimodulaire de G
 def decompositionTree():
     M = [{i for i in range(n[0])},{i for i in range(n[1])}]
     listPPB = PPB()
-    tree = decompose(M,listPPB)
+    tree = recursiveDecompose(M,listPPB)
     displayTree(tree,0)
     return True
 
