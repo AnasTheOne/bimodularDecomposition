@@ -386,10 +386,19 @@ def decompositionTree():
 """
 n = [4,4]
 Gw = [{0,1},{1,2},{2},{0,1,2}] # liste d'adjacence les noeuds blancs G_white
-"""
+
 n = [11,10]
 Gw = [{0,1},{1,2},{2},{0,1,2},{0,3,1,2,4,7,8,9},{0,1,2,3,5,7,8,9},{0,1,2,3,5,6},{0,1,2,3,7,8},{0,1,2,3,8},{0,1,2,3,8,9},{0,1,2,3,9}]
+"""
+n = [2,2]
+Gw = [{0},{1}]#2K2
+"""
+n = [3,4]
+Gw = [{0,1},{1,2},{2,3}]#P7
 
+n = [4,3]
+Gw = [{0,1},{1},{1,2},{2}]#Star123
+"""
 #Gw = randomGen(n,0.7)
 N = n[0]+n[1]
 G=[Gw,Gb(Gw,n)] #création du graphe avec la liste d'adjacence blanche et noir
